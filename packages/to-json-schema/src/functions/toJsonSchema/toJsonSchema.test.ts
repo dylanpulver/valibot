@@ -140,6 +140,27 @@ describe('toJsonSchema', () => {
       });
     });
 
+    test('for recursive schema without definitions on repeated calls', () => {
+      const nodeSchema: v.GenericSchema = v.object({
+        child: v.optional(v.lazy(() => nodeSchema)),
+      });
+      const expectedJsonSchema = {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        properties: { child: { $ref: '#/$defs/0' } },
+        required: [],
+        $defs: {
+          '0': {
+            type: 'object',
+            properties: { child: { $ref: '#/$defs/0' } },
+            required: [],
+          },
+        },
+      };
+      expect(toJsonSchema(nodeSchema)).toStrictEqual(expectedJsonSchema);
+      expect(toJsonSchema(nodeSchema)).toStrictEqual(expectedJsonSchema);
+    });
+
     test('for definitions with JSON Pointer special characters', () => {
       const sharedSchema = v.object({ name: v.string() });
       expect(

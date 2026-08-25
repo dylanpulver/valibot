@@ -134,8 +134,24 @@ function getDefinitionRef(referenceId: string): string {
   return `#/$defs/${referenceId.replaceAll('~', '~0').replaceAll('/', '~1')}`;
 }
 
-// Create global reference count
-let refCount = 0;
+/**
+ * Creates a reference ID that is not yet used by the conversion context.
+ *
+ * @param context The conversion context.
+ *
+ * @returns The unused reference ID.
+ */
+function createReferenceId(context: ConversionContext): string {
+  const usedIds = new Set([
+    ...Object.keys(context.definitions),
+    ...context.referenceMap.values(),
+  ]);
+  let count = 0;
+  while (usedIds.has(`${count}`)) {
+    count++;
+  }
+  return `${count}`;
+}
 
 /**
  * Converts any supported Valibot schema to the JSON Schema format.
@@ -626,7 +642,7 @@ export function convertSchema(
 
       // Add wrapped Valibot schema to reference map and definitions, if necessary
       if (!referenceId) {
-        referenceId = `${refCount++}`;
+        referenceId = createReferenceId(context);
         context.referenceMap.set(wrappedValibotSchema, referenceId);
         context.definitions[referenceId] = convertSchema(
           {},

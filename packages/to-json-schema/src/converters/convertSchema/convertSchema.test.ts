@@ -1421,6 +1421,34 @@ describe('convertSchema', () => {
       });
     });
 
+    test('should not reuse taken key for generated reference ID', () => {
+      const numberSchema = v.number();
+      const stringSchema = v.string();
+      const lazyGetter = () => stringSchema;
+      const createTakenContext = () =>
+        createContext({
+          definitions: { '0': { type: 'number' } },
+          referenceMap: new Map().set(numberSchema, '0'),
+        });
+
+      const firstContext = createTakenContext();
+      expect(
+        convertSchema({}, v.lazy(lazyGetter), undefined, firstContext)
+      ).toStrictEqual({ $ref: '#/$defs/1' });
+      expect(firstContext).toStrictEqual({
+        definitions: { '0': { type: 'number' }, '1': { type: 'string' } },
+        referenceMap: new Map().set(numberSchema, '0').set(stringSchema, '1'),
+        getterMap: new Map().set(lazyGetter, stringSchema),
+      });
+
+      // Hint: The second conversion must return the same reference ID as the
+      // first one, as the ID only depends on the conversion context.
+      const secondContext = createTakenContext();
+      expect(
+        convertSchema({}, v.lazy(lazyGetter), undefined, secondContext)
+      ).toStrictEqual({ $ref: '#/$defs/1' });
+    });
+
     test('should convert recursive lazy schema with static getter', () => {
       // Returns a static reference that never changes
       const lazyGetter = () => nodeSchema;
@@ -1438,18 +1466,18 @@ describe('convertSchema', () => {
         )
       ).toStrictEqual({
         type: 'object',
-        properties: { node: { $ref: '#/$defs/1' } },
+        properties: { node: { $ref: '#/$defs/0' } },
         required: [],
       });
       expect(context).toStrictEqual({
         definitions: {
-          '1': {
+          '0': {
             type: 'object',
-            properties: { node: { $ref: '#/$defs/1' } },
+            properties: { node: { $ref: '#/$defs/0' } },
             required: [],
           },
         },
-        referenceMap: new Map().set(nodeSchema, '1'),
+        referenceMap: new Map().set(nodeSchema, '0'),
         getterMap: new Map().set(lazyGetter, nodeSchema),
       });
     });
@@ -1471,23 +1499,23 @@ describe('convertSchema', () => {
         )
       ).toStrictEqual({
         type: 'object',
-        properties: { node: { $ref: '#/$defs/2' } },
+        properties: { node: { $ref: '#/$defs/0' } },
         required: ['node'],
       });
       expect(context).toStrictEqual({
         definitions: {
-          '2': {
+          '0': {
             anyOf: [
               {
                 type: 'object',
-                properties: { node: { $ref: '#/$defs/2' } },
+                properties: { node: { $ref: '#/$defs/0' } },
                 required: ['node'],
               },
               { type: 'null' },
             ],
           },
         },
-        referenceMap: new Map().set(expect.any(Object), '2'),
+        referenceMap: new Map().set(expect.any(Object), '0'),
         getterMap: new Map().set(lazyGetter, expect.any(Object)),
       });
     });
