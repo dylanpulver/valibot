@@ -1449,6 +1449,42 @@ describe('convertSchema', () => {
       ).toStrictEqual({ $ref: '#/$defs/1' });
     });
 
+    test('should skip taken keys for every generated reference ID', () => {
+      const takenSchema = v.number();
+      const wrappedSchemas = [v.string(), v.boolean(), v.null()];
+      const context = createContext({
+        definitions: { '1': { type: 'number' } },
+        referenceMap: new Map().set(takenSchema, '1'),
+      });
+
+      // Hint: Reference IDs are allocated one after the other within a single
+      // context, so every allocation must skip the taken `'1'` key, not just
+      // the first one.
+      for (const [index, wrappedSchema] of wrappedSchemas.entries()) {
+        expect(
+          convertSchema(
+            {},
+            v.lazy(() => wrappedSchema),
+            undefined,
+            context
+          )
+        ).toStrictEqual({ $ref: `#/$defs/${['0', '2', '3'][index]}` });
+      }
+
+      expect(context.definitions).toStrictEqual({
+        '0': { type: 'string' },
+        '1': { type: 'number' },
+        '2': { type: 'boolean' },
+        '3': { type: 'null' },
+      });
+      expect([...context.referenceMap.values()]).toStrictEqual([
+        '1',
+        '0',
+        '2',
+        '3',
+      ]);
+    });
+
     test('should convert recursive lazy schema with static getter', () => {
       // Returns a static reference that never changes
       const lazyGetter = () => nodeSchema;

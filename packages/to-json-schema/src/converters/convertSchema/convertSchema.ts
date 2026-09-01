@@ -135,6 +135,23 @@ function getDefinitionRef(referenceId: string): string {
 }
 
 /**
+ * The reference ID allocation state of a single conversion context.
+ */
+interface ReferenceIdState {
+  /**
+   * The reference IDs that are already taken.
+   */
+  readonly usedIds: Set<string>;
+  /**
+   * The next reference ID candidate.
+   */
+  count: number;
+}
+
+// Create reference ID state cache
+const referenceIdStates = new WeakMap<ConversionContext, ReferenceIdState>();
+
+/**
  * Creates a reference ID that is not yet used by the conversion context.
  *
  * @param context The conversion context.
@@ -142,15 +159,38 @@ function getDefinitionRef(referenceId: string): string {
  * @returns The unused reference ID.
  */
 function createReferenceId(context: ConversionContext): string {
-  const usedIds = new Set([
-    ...Object.keys(context.definitions),
-    ...context.referenceMap.values(),
-  ]);
-  let count = 0;
-  while (usedIds.has(`${count}`)) {
-    count++;
+  // Get or initialize reference ID state of conversion context
+  // Hint: Both entry points register every provided definition in the
+  // reference map before any conversion starts, so this initial scan sees all
+  // externally provided reference IDs.
+  let state = referenceIdStates.get(context);
+  if (!state) {
+    state = {
+      usedIds: new Set([
+        ...Object.keys(context.definitions),
+        ...context.referenceMap.values(),
+      ]),
+      count: 0,
+    };
+    referenceIdStates.set(context, state);
   }
-  return `${count}`;
+
+  // Search for next unused reference ID
+  // Hint: Every returned ID is marked as used, so generated IDs strictly
+  // increase and the search can resume where the previous one stopped instead
+  // of rescanning the entire context on every call.
+  while (
+    state.usedIds.has(`${state.count}`) ||
+    `${state.count}` in context.definitions
+  ) {
+    state.count++;
+  }
+
+  // Mark reference ID as used and return it
+  const referenceId = `${state.count}`;
+  state.usedIds.add(referenceId);
+  state.count++;
+  return referenceId;
 }
 
 /**
