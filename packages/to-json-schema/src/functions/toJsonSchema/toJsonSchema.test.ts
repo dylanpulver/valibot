@@ -161,6 +161,70 @@ describe('toJsonSchema', () => {
       expect(toJsonSchema(nodeSchema)).toStrictEqual(expectedJsonSchema);
     });
 
+    test('for lazy schema with multiple definitions of same schema', () => {
+      const stringSchema = v.string();
+      const numberSchema = v.number();
+      const lazySchema = v.lazy(() => stringSchema);
+      expect(
+        toJsonSchema(lazySchema, {
+          definitions: {
+            '0': lazySchema,
+            '1': numberSchema,
+            '2': numberSchema,
+          },
+        })
+      ).toStrictEqual({
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        $ref: '#/$defs/0',
+        $defs: {
+          '0': { $ref: '#/$defs/3' },
+          '1': { type: 'number' },
+          '2': { type: 'number' },
+          '3': { type: 'string' },
+        },
+      });
+    });
+
+    test('for lazy schemas with reference added by override', () => {
+      const stringSchema = v.string();
+      const numberSchema = v.number();
+      const booleanSchema = v.boolean();
+      expect(
+        toJsonSchema(
+          v.object({
+            foo: v.lazy(() => stringSchema),
+            bar: v.lazy(() => numberSchema),
+            baz: booleanSchema,
+          }),
+          {
+            overrideSchema(context) {
+              if (context.valibotSchema === stringSchema) {
+                // Reserve a reference before its definition is created.
+                context.referenceMap.set(booleanSchema, '1');
+              } else if (context.valibotSchema === numberSchema) {
+                context.definitions['1'] = { type: 'boolean' };
+              }
+              return null;
+            },
+          }
+        )
+      ).toStrictEqual({
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        type: 'object',
+        properties: {
+          foo: { $ref: '#/$defs/0' },
+          bar: { $ref: '#/$defs/2' },
+          baz: { $ref: '#/$defs/1' },
+        },
+        required: ['foo', 'bar', 'baz'],
+        $defs: {
+          '0': { type: 'string' },
+          '1': { type: 'boolean' },
+          '2': { type: 'number' },
+        },
+      });
+    });
+
     test('for definitions with JSON Pointer special characters', () => {
       const sharedSchema = v.object({ name: v.string() });
       expect(

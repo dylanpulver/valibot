@@ -85,6 +85,23 @@ describe('toJsonSchemaDefs', () => {
       }
     });
 
+    test('for lazy schema with multiple definitions of same schema', () => {
+      const stringSchema = v.string();
+      const numberSchema = v.number();
+      expect(
+        toJsonSchemaDefs({
+          '0': v.lazy(() => stringSchema),
+          '1': numberSchema,
+          '2': numberSchema,
+        })
+      ).toStrictEqual({
+        '0': { $ref: '#/$defs/3' },
+        '1': { type: 'number' },
+        '2': { type: 'number' },
+        '3': { type: 'string' },
+      });
+    });
+
     test('for recursive schema', () => {
       const ul = v.object({
         type: v.literal('ul'),

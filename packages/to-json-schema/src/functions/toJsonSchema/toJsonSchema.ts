@@ -33,6 +33,8 @@ export function toJsonSchema(
   if (definitions) {
     for (const key in definitions) {
       context.referenceMap.set(definitions[key], key);
+      // Reserve every key because the same schema can have multiple names.
+      context.definitions[key] = {};
     }
     for (const key in definitions) {
       context.definitions[key] = convertSchema(

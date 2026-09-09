@@ -155,14 +155,17 @@ const referenceIdStates = new WeakMap<ConversionContext, ReferenceIdState>();
  * Creates a reference ID that is not yet used by the conversion context.
  *
  * @param context The conversion context.
+ * @param config The conversion configuration.
  *
  * @returns The unused reference ID.
  */
-function createReferenceId(context: ConversionContext): string {
+function createReferenceId(
+  context: ConversionContext,
+  config: ConversionConfig | undefined
+): string {
   // Get or initialize reference ID state of conversion context
-  // Hint: Both entry points register every provided definition in the
-  // reference map before any conversion starts, so this initial scan sees all
-  // externally provided reference IDs.
+  // Hint: Both entry points reserve every provided definition key before
+  // conversion, including aliases that share the same schema.
   let state = referenceIdStates.get(context);
   if (!state) {
     state = {
@@ -173,12 +176,17 @@ function createReferenceId(context: ConversionContext): string {
       count: 0,
     };
     referenceIdStates.set(context, state);
+  } else if (config?.overrideSchema || config?.overrideRef) {
+    // Overrides can reserve or replace reference IDs between allocations.
+    // Without overrides, every new ID is already tracked by this allocator.
+    for (const referenceId of context.referenceMap.values()) {
+      state.usedIds.add(referenceId);
+    }
   }
 
   // Search for next unused reference ID
   // Hint: Every returned ID is marked as used, so generated IDs strictly
-  // increase and the search can resume where the previous one stopped instead
-  // of rescanning the entire context on every call.
+  // increase and the search can resume where the previous one stopped.
   while (
     state.usedIds.has(`${state.count}`) ||
     `${state.count}` in context.definitions
@@ -682,7 +690,7 @@ export function convertSchema(
 
       // Add wrapped Valibot schema to reference map and definitions, if necessary
       if (!referenceId) {
-        referenceId = createReferenceId(context);
+        referenceId = createReferenceId(context, config);
         context.referenceMap.set(wrappedValibotSchema, referenceId);
         context.definitions[referenceId] = convertSchema(
           {},
