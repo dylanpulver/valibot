@@ -5,6 +5,7 @@ import type {
   ConversionContext,
   JsonSchema,
 } from '../../types/index.ts';
+import { ReferenceMap } from '../../utils/index.ts';
 
 /**
  * Converts Valibot schema definitions to JSON Schema definitions.
@@ -26,15 +27,13 @@ export function toJsonSchemaDefs<
   // Initialize JSON Schema context
   const context: ConversionContext = {
     definitions: {},
-    referenceMap: new Map(),
+    referenceMap: new ReferenceMap(),
     getterMap: new Map(),
   };
 
   // Add provided definitions to context, if necessary
   for (const key in definitions) {
     context.referenceMap.set(definitions[key], key);
-    // Reserve every key because the same schema can have multiple names.
-    context.definitions[key] = {};
   }
   for (const key in definitions) {
     context.definitions[key] = convertSchema(

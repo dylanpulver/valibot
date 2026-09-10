@@ -1,5 +1,6 @@
 import * as v from 'valibot';
 import { describe, expect, test, vi } from 'vitest';
+import { ReferenceMap } from '../../utils/index.ts';
 import { createContext } from '../../vitest/index.ts';
 import { convertSchema } from './convertSchema.ts';
 
@@ -16,7 +17,7 @@ describe('convertSchema', () => {
           undefined,
           createContext({
             definitions: { foo: { type: 'string' } },
-            referenceMap: new Map().set(schema, 'foo'),
+            referenceMap: new ReferenceMap().set(schema, 'foo'),
           })
         )
       ).toStrictEqual({
@@ -33,7 +34,7 @@ describe('convertSchema', () => {
           undefined,
           createContext({
             definitions: { 'Shared/User~': { type: 'string' } },
-            referenceMap: new Map().set(schema, 'Shared/User~'),
+            referenceMap: new ReferenceMap().set(schema, 'Shared/User~'),
           })
         )
       ).toStrictEqual({
@@ -50,7 +51,7 @@ describe('convertSchema', () => {
           undefined,
           createContext({
             definitions: { foo: { type: 'string' } },
-            referenceMap: new Map().set(stringSchema, 'foo'),
+            referenceMap: new ReferenceMap().set(stringSchema, 'foo'),
           }),
           true
         )
@@ -68,7 +69,7 @@ describe('convertSchema', () => {
           undefined,
           createContext({
             definitions: { foo: { type: 'string' } },
-            referenceMap: new Map().set(stringSchema, 'foo'),
+            referenceMap: new ReferenceMap().set(stringSchema, 'foo'),
           }),
           false
         )
@@ -87,10 +88,9 @@ describe('convertSchema', () => {
           items: { $ref: '#/$defs/string' },
         },
       } as const;
-      const referenceMap = new Map<v.GenericSchema, string>([
-        [stringSchema, 'string'],
-        [arraySchema, 'array'],
-      ]);
+      const referenceMap = new ReferenceMap()
+        .set(stringSchema, 'string')
+        .set(arraySchema, 'array');
       expect(
         convertSchema(
           {},
@@ -122,7 +122,7 @@ describe('convertSchema', () => {
           },
           createContext({
             definitions: { foo: { type: 'string' }, bar: { type: 'number' } },
-            referenceMap: new Map().set(foo, 'foo').set(bar, 'bar'),
+            referenceMap: new ReferenceMap().set(foo, 'foo').set(bar, 'bar'),
           })
         )
       ).toStrictEqual({
@@ -176,7 +176,7 @@ describe('convertSchema', () => {
           undefined,
           createContext({
             definitions: { foo: { type: 'string' } },
-            referenceMap: new Map().set(schema, 'foo'),
+            referenceMap: new ReferenceMap().set(schema, 'foo'),
           })
         )
       ).toStrictEqual({
@@ -1394,7 +1394,7 @@ describe('convertSchema', () => {
       ).toStrictEqual({ $ref: '#/$defs/0' });
       expect(context).toStrictEqual({
         definitions: { '0': { type: 'string' } },
-        referenceMap: new Map().set(stringSchema, '0'),
+        referenceMap: new ReferenceMap().set(stringSchema, '0'),
         getterMap: new Map().set(lazyGetter, stringSchema),
       });
     });
@@ -1404,7 +1404,7 @@ describe('convertSchema', () => {
       const lazyGetter = () => stringSchema;
       const context = createContext({
         definitions: { testSchema: { type: 'string' } },
-        referenceMap: new Map().set(stringSchema, 'stringSchema'),
+        referenceMap: new ReferenceMap().set(stringSchema, 'stringSchema'),
       });
       expect(
         convertSchema(
@@ -1416,7 +1416,7 @@ describe('convertSchema', () => {
       ).toStrictEqual({ $ref: '#/$defs/stringSchema' });
       expect(context).toStrictEqual({
         definitions: { testSchema: { type: 'string' } },
-        referenceMap: new Map().set(stringSchema, 'stringSchema'),
+        referenceMap: new ReferenceMap().set(stringSchema, 'stringSchema'),
         getterMap: new Map().set(lazyGetter, stringSchema),
       });
     });
@@ -1428,7 +1428,7 @@ describe('convertSchema', () => {
       const createTakenContext = () =>
         createContext({
           definitions: { '0': { type: 'number' } },
-          referenceMap: new Map().set(numberSchema, '0'),
+          referenceMap: new ReferenceMap().set(numberSchema, '0'),
         });
 
       const firstContext = createTakenContext();
@@ -1437,7 +1437,9 @@ describe('convertSchema', () => {
       ).toStrictEqual({ $ref: '#/$defs/1' });
       expect(firstContext).toStrictEqual({
         definitions: { '0': { type: 'number' }, '1': { type: 'string' } },
-        referenceMap: new Map().set(numberSchema, '0').set(stringSchema, '1'),
+        referenceMap: new ReferenceMap()
+          .set(numberSchema, '0')
+          .set(stringSchema, '1'),
         getterMap: new Map().set(lazyGetter, stringSchema),
       });
 
@@ -1454,7 +1456,7 @@ describe('convertSchema', () => {
       const wrappedSchemas = [v.string(), v.boolean(), v.null()];
       const context = createContext({
         definitions: { '1': { type: 'number' } },
-        referenceMap: new Map().set(takenSchema, '1'),
+        referenceMap: new ReferenceMap().set(takenSchema, '1'),
       });
 
       // Hint: Reference IDs are allocated one after the other within a single
@@ -1513,7 +1515,7 @@ describe('convertSchema', () => {
             required: [],
           },
         },
-        referenceMap: new Map().set(nodeSchema, '0'),
+        referenceMap: new ReferenceMap().set(nodeSchema, '0'),
         getterMap: new Map().set(lazyGetter, nodeSchema),
       });
     });
@@ -1551,7 +1553,7 @@ describe('convertSchema', () => {
             ],
           },
         },
-        referenceMap: new Map().set(expect.any(Object), '0'),
+        referenceMap: new ReferenceMap().set(expect.any(Object), '0'),
         getterMap: new Map().set(lazyGetter, expect.any(Object)),
       });
     });

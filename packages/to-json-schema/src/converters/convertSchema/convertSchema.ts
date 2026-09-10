@@ -135,73 +135,6 @@ function getDefinitionRef(referenceId: string): string {
 }
 
 /**
- * The reference ID allocation state of a single conversion context.
- */
-interface ReferenceIdState {
-  /**
-   * The reference IDs that are already taken.
-   */
-  readonly usedIds: Set<string>;
-  /**
-   * The next reference ID candidate.
-   */
-  count: number;
-}
-
-// Create reference ID state cache
-const referenceIdStates = new WeakMap<ConversionContext, ReferenceIdState>();
-
-/**
- * Creates a reference ID that is not yet used by the conversion context.
- *
- * @param context The conversion context.
- * @param config The conversion configuration.
- *
- * @returns The unused reference ID.
- */
-function createReferenceId(
-  context: ConversionContext,
-  config: ConversionConfig | undefined
-): string {
-  // Get or initialize reference ID state of conversion context
-  // Hint: Both entry points reserve every provided definition key before
-  // conversion, including aliases that share the same schema.
-  let state = referenceIdStates.get(context);
-  if (!state) {
-    state = {
-      usedIds: new Set([
-        ...Object.keys(context.definitions),
-        ...context.referenceMap.values(),
-      ]),
-      count: 0,
-    };
-    referenceIdStates.set(context, state);
-  } else if (config?.overrideSchema || config?.overrideRef) {
-    // Overrides can reserve or replace reference IDs between allocations.
-    // Without overrides, every new ID is already tracked by this allocator.
-    for (const referenceId of context.referenceMap.values()) {
-      state.usedIds.add(referenceId);
-    }
-  }
-
-  // Search for next unused reference ID
-  // Hint: Every returned ID is marked as used, so generated IDs strictly
-  // increase and the search can resume where the previous one stopped.
-  while (
-    state.usedIds.has(`${state.count}`) ||
-    `${state.count}` in context.definitions
-  ) {
-    state.count++;
-  }
-
-  // Mark reference ID as used and return it
-  const referenceId = `${state.count}`;
-  state.usedIds.add(referenceId);
-  state.count++;
-  return referenceId;
-}
-
-/**
  * Converts any supported Valibot schema to the JSON Schema format.
  *
  * @param jsonSchema The JSON Schema object.
@@ -690,7 +623,7 @@ export function convertSchema(
 
       // Add wrapped Valibot schema to reference map and definitions, if necessary
       if (!referenceId) {
-        referenceId = createReferenceId(context, config);
+        referenceId = context.referenceMap.createId(context.definitions);
         context.referenceMap.set(wrappedValibotSchema, referenceId);
         context.definitions[referenceId] = convertSchema(
           {},

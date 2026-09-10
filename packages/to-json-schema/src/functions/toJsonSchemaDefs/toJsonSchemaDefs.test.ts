@@ -102,6 +102,31 @@ describe('toJsonSchemaDefs', () => {
       });
     });
 
+    test('for overrides with only previously converted definitions', () => {
+      const stringSchema = v.string();
+      const numberSchema = v.number();
+      expect(
+        toJsonSchemaDefs(
+          { stringSchema, numberSchema },
+          {
+            overrideSchema(context) {
+              if (context.valibotSchema === stringSchema) {
+                expect(context.definitions).toStrictEqual({});
+              } else if (context.valibotSchema === numberSchema) {
+                expect(context.definitions).toStrictEqual({
+                  stringSchema: { type: 'string' },
+                });
+              }
+              return null;
+            },
+          }
+        )
+      ).toStrictEqual({
+        stringSchema: { type: 'string' },
+        numberSchema: { type: 'number' },
+      });
+    });
+
     test('for recursive schema', () => {
       const ul = v.object({
         type: v.literal('ul'),
